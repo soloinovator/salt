@@ -6,11 +6,11 @@
 apache-libcloud>=2.4.0
 backports.ssl_match_hostname>=3.7.0.1; python_version < '3.7'
 cherrypy>=17.4.1
-cryptography>=2.6.1
-gitpython>=2.1.15
-idna>=2.8
+cryptography>=42.0.2
+gitpython>=3.1.41
+idna>=3.7
 linode-python>=1.1.1
-mako>=1.0.7
+mako>=1.2.2
 pyasn1>=0.4.8
 pycparser>=2.19
 pyopenssl>=19.0.0
@@ -21,3 +21,5 @@ timelib>=0.2.5
 vultr>=1.0.1
 
 importlib_metadata>=3.3.0; python_version >= '3.6' and python_version < '3.10'
+certifi>=2023.7.22 # not directly required, pinned by Snyk to avoid a vulnerability
+requests>=2.31.0 # not directly required, pinned by Snyk to avoid a vulnerability
