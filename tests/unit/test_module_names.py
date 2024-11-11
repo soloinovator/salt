@@ -15,7 +15,6 @@ from tests.support.unit import TestCase
 EXCLUDED_DIRS = [
     os.path.join("tests", "integration", "cloud", "helpers"),
     os.path.join("tests", "integration", "files"),
-    os.path.join("tests", "kitchen", "tests"),
     os.path.join("tests", "perf"),
     os.path.join("tests", "pkg"),
     os.path.join("tests", "support"),
@@ -26,15 +25,12 @@ EXCLUDED_DIRS = [
     os.path.join("tests", "unit", "setup"),
     os.path.join("tests", "unit", "templates", "files"),
 ]
-INCLUDED_DIRS = [
-    os.path.join("tests", "kitchen", "tests", "*", "tests", "*"),
-]
+INCLUDED_DIRS = []
 EXCLUDED_FILES = [
     os.path.join("tests", "buildpackage.py"),
     os.path.join("tests", "committer_parser.py"),
     os.path.join("tests", "consist.py"),
     os.path.join("tests", "eventlisten.py"),
-    os.path.join("tests", "jenkins.py"),
     os.path.join("tests", "minionswarm.py"),
     os.path.join("tests", "modparser.py"),
     os.path.join("tests", "packdump.py"),
@@ -134,7 +130,6 @@ class BadTestModuleNamesTestCase(TestCase):
             "integration.modules.test_decorators",
             "integration.modules.test_pkg",
             "integration.modules.test_service",
-            "integration.modules.test_state_jinja_filters",
             "integration.modules.test_sysctl",
             "integration.netapi.rest_tornado.test_app",
             "integration.output.test_output",
@@ -167,7 +162,6 @@ class BadTestModuleNamesTestCase(TestCase):
             "integration.spm.test_repo",
             "integration.ssh.test_deploy",
             "integration.ssh.test_grains",
-            "integration.ssh.test_jinja_filters",
             "integration.ssh.test_master",
             "integration.ssh.test_mine",
             "integration.ssh.test_pillar",
@@ -246,6 +240,6 @@ class BadTestModuleNamesTestCase(TestCase):
                     # Yep, it is. Carry on!
                     continue
 
-                errors.append("{} (expected: {})\n".format(mod_name, relpath))
+                errors.append(f"{mod_name} (expected: {relpath})\n")
 
         assert not errors, _format_errors(errors)

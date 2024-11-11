@@ -1,12 +1,15 @@
 """
 Integration tests for salt-ssh py_versions
 """
+
 import logging
-import shutil
-import subprocess
+import socket
+import time
 
 import pytest
 from saltfactories.utils import random_string
+
+from tests.support.helpers import Keys
 
 pytest.importorskip("docker")
 
@@ -19,38 +22,25 @@ pytestmark = [
 ]
 
 
-class Keys:
-    """
-    Temporary ssh key pair
-    """
-
-    def __init__(self, tmp_path_factory):
-        priv_path = tmp_path_factory.mktemp(".ssh") / "key"
-        self.priv_path = priv_path
-
-    def generate(self):
-        subprocess.run(
-            ["ssh-keygen", "-q", "-N", "", "-f", str(self.priv_path)], check=True
-        )
-
-    @property
-    def pub_path(self):
-        return self.priv_path.with_name("{}.pub".format(self.priv_path.name))
-
-    @property
-    def pub(self):
-        return self.pub_path.read_text()
-
-    @property
-    def priv(self):
-        return self.priv_path.read_text()
-
-    def __enter__(self):
-        self.generate()
-        return self
-
-    def __exit__(self, *_):
-        shutil.rmtree(str(self.priv_path.parent), ignore_errors=True)
+def check_container_started(timeout_at, container):
+    sleeptime = 2
+    while time.time() <= timeout_at:
+        time.sleep(sleeptime)
+        try:
+            if not container.is_running():
+                return False
+            sock = socket.socket()
+            sock.connect(("localhost", container.get_check_ports()[22]))
+            return True
+        except Exception as err:  # pylint: disable=broad-except
+            break
+        finally:
+            sock.close()
+        time.sleep(sleeptime)
+        sleeptime *= 2
+    else:
+        return False
+    return False
 
 
 @pytest.fixture(scope="module")
@@ -69,7 +59,7 @@ def ssh_docker_container(salt_factories, ssh_keys):
     """
     container = salt_factories.get_container(
         random_string("ssh-py_versions-"),
-        "dwoz1/cicd:ssh",
+        "ghcr.io/saltstack/salt-ci-containers/ssh-minion:latest",
         container_run_kwargs={
             "ports": {
                 "22/tcp": None,
@@ -84,6 +74,7 @@ def ssh_docker_container(salt_factories, ssh_keys):
         skip_on_pull_failure=True,
         skip_if_docker_client_not_connectable=True,
     )
+    container.container_start_check(check_container_started, container)
     with container.started() as factory:
         yield factory
 
@@ -94,22 +85,19 @@ def ssh_port(ssh_docker_container):
 
 
 @pytest.fixture(scope="module")
-def salt_ssh_roster_file(ssh_port, ssh_keys, salt_master):
+def salt_ssh_roster_file(ssh_port, ssh_keys, salt_master, known_hosts_file):
     """
     Temporary roster for ssh docker container
     """
-    roster = """
+    roster = f"""
     pyvertest:
       host: localhost
       user: centos
-      port: {}
-      priv: {}
+      port: {ssh_port}
+      priv: {ssh_keys.priv_path}
       ssh_options:
-        - StrictHostKeyChecking=no
-        - UserKnownHostsFile=/dev/null
-    """.format(
-        ssh_port, ssh_keys.priv_path
-    )
+        - UserKnownHostsFile={known_hosts_file}
+    """
     with pytest.helpers.temp_file(
         "py_versions_roster", roster, salt_master.config_dir
     ) as roster_file:
@@ -129,7 +117,6 @@ def salt_ssh_cli(salt_master, salt_ssh_roster_file, ssh_keys, ssh_docker_contain
     )
 
 
-@pytest.mark.slow_test
 def test_py36_target(salt_ssh_cli):
     """
     Test that a python >3.6 master can salt ssh to a <3.6 target

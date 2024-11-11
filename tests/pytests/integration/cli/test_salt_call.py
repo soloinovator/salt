@@ -6,15 +6,16 @@ import re
 import sys
 
 import pytest
+
 import salt.defaults.exitcodes
 import salt.utils.files
 import salt.utils.json
 import salt.utils.platform
 import salt.utils.yaml
-from tests.support.helpers import PRE_PYTEST_SKIP, PRE_PYTEST_SKIP_REASON, change_cwd
+from tests.support.helpers import PRE_PYTEST_SKIP, PRE_PYTEST_SKIP_REASON
 
 pytestmark = [
-    pytest.mark.slow_test,
+    pytest.mark.core_test,
     pytest.mark.windows_whitelisted,
 ]
 
@@ -39,7 +40,7 @@ def test_fib_txt_output(salt_call_cli):
 
 @pytest.mark.parametrize("indent", [-1, 0, 1])
 def test_json_out_indent(salt_call_cli, indent):
-    ret = salt_call_cli.run("--out=json", "--out-indent={}".format(indent), "test.ping")
+    ret = salt_call_cli.run("--out=json", f"--out-indent={indent}", "test.ping")
     assert ret.returncode == 0
     assert ret.data is True
     if indent == -1:
@@ -163,7 +164,7 @@ def test_issue_14979_output_file_permissions(salt_call_cli):
             try:
                 stat1 = output_file.stat()
             except OSError:
-                pytest.fail("Failed to generate output file {}".format(output_file))
+                pytest.fail(f"Failed to generate output file {output_file}")
 
             # Let's change umask
             os.umask(0o777)  # pylint: disable=blacklisted-function
@@ -186,7 +187,7 @@ def test_issue_14979_output_file_permissions(salt_call_cli):
             try:
                 stat3 = output_file.stat()
             except OSError:
-                pytest.fail("Failed to generate output file {}".format(output_file))
+                pytest.fail(f"Failed to generate output file {output_file}")
             # Mode must have changed since we're creating a new log file
             assert stat1.st_mode != stat3.st_mode
 
@@ -283,13 +284,13 @@ def test_syslog_file_not_found(salt_minion, salt_call_cli, tmp_path):
     """
     config_dir = tmp_path / "log_file_incorrect"
     config_dir.mkdir()
-    with change_cwd(str(config_dir)):
+    with pytest.helpers.change_cwd(str(config_dir)):
         minion_config = copy.deepcopy(salt_minion.config)
         minion_config["log_file"] = "file:///dev/doesnotexist"
         with salt.utils.files.fopen(str(config_dir / "minion"), "w") as fh_:
             fh_.write(salt.utils.yaml.dump(minion_config, default_flow_style=False))
         ret = salt_call_cli.run(
-            "--config-dir={}".format(config_dir),
+            f"--config-dir={config_dir}",
             "--log-level=debug",
             "cmd.run",
             "echo foo",
@@ -422,24 +423,9 @@ def test_local_salt_call_no_function_no_retcode(salt_call_cli):
 
     Also ensure we don't get an exception.
     """
-    with pytest.helpers.temp_file() as filename:
-
-        ret = salt_call_cli.run("--local", "test")
-        assert ret.returncode == 1
-
-        state_run_dict = ret.data
-        assert "test" in state_run_dict
-        assert state_run_dict["test"] == "'test' is not available."
-
-        assert "test.recho" in state_run_dict
-
-        expected = """
-    Return a reversed string
-
-    CLI Example:
-
-        salt '*' test.recho 'foo bar baz quo qux'
-    """
-        a = state_run_dict["test.recho"]
-        b = expected
-        assert state_run_dict["test.recho"] == expected
+    ret = salt_call_cli.run("--local", "test")
+    assert ret.returncode == 1
+    assert ret.data
+    assert "test" in ret.data
+    assert ret.data["test"] == "'test' is not available."
+    assert "test.echo" in ret.data
