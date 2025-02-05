@@ -1,6 +1,7 @@
 import pytest
+from tornado.httpclient import HTTPError
+
 import salt.utils.json
-from salt.ext.tornado.httpclient import HTTPError
 from salt.netapi.rest_tornado import saltnado
 
 
@@ -18,6 +19,7 @@ async def test_get_no_mid(http_client, salt_minion, salt_sub_minion):
         method="GET",
         follow_redirects=False,
     )
+    print(f"{response!r}")
     response_obj = salt.utils.json.loads(response.body)
     assert len(response_obj["return"]) == 1
     assert isinstance(response_obj["return"][0], dict)
@@ -33,7 +35,7 @@ async def test_get_no_mid(http_client, salt_minion, salt_sub_minion):
 @pytest.mark.slow_test
 async def test_get(http_client, salt_minion):
     response = await http_client.fetch(
-        "/minions/{}".format(salt_minion.id),
+        f"/minions/{salt_minion.id}",
         method="GET",
         follow_redirects=False,
     )
@@ -97,3 +99,16 @@ async def test_post_with_incorrect_client(http_client):
             body=salt.utils.json.dumps(low),
         )
     assert exc.value.code == 400
+
+
+@pytest.mark.slow_test
+async def test_mem_leak_in_event_listener(http_client, salt_minion, app):
+    for i in range(10):
+        await http_client.fetch(
+            f"/minions/{salt_minion.id}",
+            method="GET",
+            follow_redirects=False,
+        )
+    assert len(app.event_listener.tag_map) == 0
+    assert len(app.event_listener.timeout_map) == 0
+    assert len(app.event_listener.request_map) == 0

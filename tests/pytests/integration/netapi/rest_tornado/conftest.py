@@ -1,4 +1,5 @@
 import pytest
+
 import tests.support.netapi as netapi
 from salt.netapi.rest_tornado import saltnado
 
@@ -6,14 +7,24 @@ from salt.netapi.rest_tornado import saltnado
 @pytest.fixture
 def client_config(client_config, netapi_port):
     client_config["rest_tornado"] = {"port": netapi_port}
+    client_config["netapi_enable_clients"] = [
+        "local",
+        "local_async",
+        "runner",
+        "runner_async",
+    ]
     return client_config
 
 
 @pytest.fixture
 def app(app_urls, load_auth, client_config, minion_config, salt_sub_minion):
-    return netapi.build_tornado_app(
+    app = netapi.build_tornado_app(
         app_urls, load_auth, client_config, minion_config, setup_event_listener=True
     )
+    try:
+        yield app
+    finally:
+        app.event_listener.destroy()
 
 
 @pytest.fixture

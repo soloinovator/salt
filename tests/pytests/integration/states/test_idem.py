@@ -1,10 +1,12 @@
 """
 Tests for the idem state
 """
+
 import tempfile
 from contextlib import contextmanager
 
 import pytest
+
 import salt.state
 import salt.utils.idem as idem
 import salt.utils.path
@@ -61,5 +63,5 @@ def test_bad_state(salt_call_cli):
     parent = ret.data["idem_|-idem_bad_test_|-idem_bad_test_|-state"]
 
     assert parent["result"] is False
-    assert "SLS ref {} did not resolve to a file".format(bad_sls) == parent["comment"]
+    assert f"SLS ref {bad_sls} did not resolve to a file" == parent["comment"]
     assert not parent["sub_state_run"]
